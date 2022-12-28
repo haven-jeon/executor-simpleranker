@@ -5,7 +5,7 @@ from itertools import groupby
 from typing import Dict
 
 from docarray.score import NamedScore
-from jina import DocumentArray, Executor, requests
+from jina import DocumentArray, Executor, requests, Document
 from jina.logging.logger import JinaLogger
 
 
@@ -72,8 +72,20 @@ class SimpleRanker(Executor):
                             chunk_match_list, key=lambda m: -m.scores[self.metric].value
                         )
                     )
-                match = chunk_match_list[0]
-                match.id = chunk_match_list[0].parent_id
+                # more robust way to copy Document
+                match = Document()
+                match.copy_from(chunk_match_list[0])
+                # for i in chunk_match_list:
+                #     self.logger.info("key:" + key)
+                #     self.logger.info("id:" + i.id)
+                #     self.logger.info("parent id:" + i.parent_id)
+                # only replace if not root node
+                if match.granularity > 0:
+                    match.id = chunk_match_list[0].parent_id
+                    match.granularity = 0
+                    match.parent_id = None
+                    #self.logger.info('granularity : ' + str(match.granularity))
+                    #self.logger.info(f'parents id : {match.id} {type(match.id)}')
                 if self.ranking in ['mean_min', 'mean_max']:
                     scores = [el.scores[self.metric].value for el in chunk_match_list]
                     match.scores[self.metric] = NamedScore(
